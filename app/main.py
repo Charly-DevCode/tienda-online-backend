@@ -1,0 +1,106 @@
+import os
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.utils import get_openapi
+
+from dotenv import load_dotenv
+
+from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from app.core.config import settings
+from app.core.db import init_db
+
+
+from app.api.v1.admin import router as admin_router
+from app.api.v1.shop import router as store_router
+from app.api.v1.auth.router import router as auth_router
+from app.api.v1.users.router import router as user_router
+from app.core.tasks import check_out_job
+
+
+load_dotenv()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):    
+    await init_db()
+
+    scheduler = AsyncIOScheduler(timezone='America/Argentina/Buenos_Aires')
+
+    scheduler.add_job(
+        check_out_job,
+        trigger='interval',        
+        minutes=5,
+        id='check_zero_stock_job',
+        replace_existing=True,
+        max_instances=1,  # Evita que corra más de una instancia a la vez
+        coalesce=True     # Si se solapan, junta las ejecuciones pendientes en una
+    )
+    scheduler.start()
+
+    yield
+    
+    scheduler.shutdown()
+
+app = FastAPI(    
+    title=settings.PROJECT_NAME,
+    lifespan=lifespan,
+    swagger_ui_parameters={'persistAuthorization': True}
+)
+
+# --- 2. Añade esta función para limpiar el candado en Swagger ---
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title=settings.PROJECT_NAME,
+        version='1.0.0',
+        routes=app.routes,
+    )
+    
+    openapi_schema['components']['securitySchemes'] = {
+        'OAuth2PasswordBearer': {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+        }
+    }
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+# ----------------------------------------------------------------
+
+os.makedirs('app/uploads', exist_ok=True)
+
+# Monta la carpeta apuntando correctamente al directorio físico dentro de app
+app.mount('/uploads', StaticFiles(directory='app/uploads'), name='uploads')
+
+# Configura los orígenes permitidos
+origins = [
+    'http://localhost:5173',  # Vite
+    'http://localhost:3000',  # React por defecto
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+
+app.include_router(admin_router, prefix='/api/v1')
+app.include_router(store_router, prefix='/api/v1')
+app.include_router(auth_router, prefix='/api/v1/auth', tags=['Auth'])
+app.include_router(user_router, prefix='/api/v1/users', tags=['Users'])
+
+
+@app.get('/')
+def get_root():
+    return {'message': 'Bienvenido a mi tienda'}
