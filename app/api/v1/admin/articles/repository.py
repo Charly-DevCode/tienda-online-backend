@@ -114,7 +114,7 @@ class ArticleRepository:
         
         allowed_columns = {
             'id': Article.id,
-            'name': Article.detail,        
+            'title': Article.title,        
             'brand': Brand.name,
             'category': Category.name
         }
