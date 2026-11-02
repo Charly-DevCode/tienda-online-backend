@@ -36,7 +36,7 @@ async def get_all(
     page: int = Query(default=1, ge=1),  
     title: str | None = Query(default=None, min_length=2, max_length=50),
     brand: str | None = Query(default=None, min_length=2, max_length=50),
-    category: str | None = Query(default=None, min_length=2, max_length=50),    
+    category: str | None = Query(default=None, min_length=2, max_length=70),    
     sort_by: ArticleSortField | None = Query(
         default=ArticleSortField.ID, 
         description='Campo por el cual ordenar'
