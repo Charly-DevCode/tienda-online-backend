@@ -117,7 +117,7 @@ async def insert_article(
     user: User = support_assistant_dependency,
     db: AsyncSession = Depends(get_session)
 ) -> ArticleResponse:
-    article_service = ArticleService(db=db)
+    article_service = ArticleService(db=db)	
 
     data = ArticleCreate(
         title=title,

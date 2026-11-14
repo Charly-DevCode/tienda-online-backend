@@ -5,19 +5,28 @@ from pydantic import computed_field, field_validator
 
 from app.enums.articles import UnitsType, StatusArticle
 
+from app.utils.regex_validators import clean_string_spaces
 from app.utils.security_constants import validate_no_forbidden_words
 from app.utils.slug import convert_slug
 
 
 class ArticleBase(BaseModel):
-    """Base para validación de palabras prohibidas en campos de texto."""
+    """Base para validación de palabras prohibidas 
+    y espacios en campos de texto."""
+
+    @field_validator('title', 'detail', mode='after', check_fields=False)
+    @classmethod
+    def clean_spaces(cls, value: str | None):
+        if value is None:
+            return value
+        return clean_string_spaces(value=value)
 
     @field_validator('title', 'detail', mode='after', check_fields=False)
     @classmethod
     def check_forbidden_words(cls, value: str | None):
         if value is None:
             return value
-        return validate_no_forbidden_words(value=value)
+        return validate_no_forbidden_words(value=value)    
 
 
 class ArticleCreate(ArticleBase):

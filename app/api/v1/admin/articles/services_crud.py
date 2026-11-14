@@ -25,8 +25,7 @@ from app.api.v1.admin.movements.services import ActivityLogService
 from app.core.exceptions import ArticleExist, ArticleNotFound
 from app.core.exceptions import CategoryNotFound, BrandNotFound
 
-if TYPE_CHECKING:
-    from app.models.articles import Article
+from app.models.articles import Article
 
 class ArticleService:
     def __init__(self, db: AsyncSession):
